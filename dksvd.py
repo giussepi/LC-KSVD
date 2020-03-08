@@ -212,7 +212,7 @@ class DKSVD(object):
         """
 
         H_train = sp.zeros((int(labels.max()), Y.shape[1]), dtype=float)
-        print H_train.shape
+        print(H_train.shape)
         for c in range(int(labels.max())):
             H_train[c, labels == (c+1)] = 1.
 
