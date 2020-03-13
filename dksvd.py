@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import scipy as sp
 import scipy.linalg as splin
-from numpy import linalg as LA
 from sklearn.linear_model import orthogonal_mp_gram
 
+from .utils.utils import colnorms_squared_new
 
-class ApproximateKSVD(object):
+
+class ApproximateKSVD:
     def __init__(self, n_components, max_iter=10, tol=1e-6, transform_n_nonzero_coefs=None):
         """
         Parameters
         ----------
-        n_components:
-        Number of dictionary elements
-        max_iter:
-        Maximum number of iterations
-        tol:
-        tolerance for error
-        transform_n_nonzero_coefs:
-        Number of nonzero coefficients to target
+        n_components               : Number of dictionary elements
+        max_iter                   : Maximum number of iterations
+        tol                        : tolerance for error
+        transform_n_nonzero_coefs  : Number of nonzero coefficients to target
         """
         self.components_ = None
         self.gamma_ = None
@@ -90,7 +88,7 @@ class ApproximateKSVD(object):
         return self._transform(self.components_, X)
 
 
-class DKSVD(object):
+class DKSVD:
     """
       Implementation of the Label consistent KSVD algorithm proposed by Zhuolin Jiang, Zhe Lin and Larry S. Davis.
       This implementation is a translation of the matlab code released by the authors on http://users.umiacs.umd.edu/~zhuolin/projectlcksvd.html.
@@ -122,29 +120,35 @@ class DKSVD(object):
         numClass = H_train.shape[0]  # number of objects
         numPerClass = round(dictsize/float(numClass))  # initial points from each class
         Dinit = sp.empty((training_feats.shape[0], numClass*numPerClass))  # for LC-Ksvd1 and LC-Ksvd2
-        dictLabel = sp.zeros((numClass, numPerClass))
-
+        dictLabel = sp.zeros((numClass, numClass*numPerClass))
         runKsvd = ApproximateKSVD(numPerClass, max_iter=iterations, tol=tol, transform_n_nonzero_coefs=sparsitythres)
-        for classid in range(numClass):
 
-            col_ids = sp.logical_and(H_train[classid, :] == 1, sp.sum(training_feats**2, axis=1) > 1e-6)
+        for classid in range(numClass):
+            col_ids = np.array(np.nonzero(H_train[classid, :] == 1)).ravel()
+            # TODO: I think the following two lines are equivalent. Remove one
+            data_ids = np.array(np.nonzero(sp.sum(training_feats[:, col_ids]**2, axis=0) > 1e-6)).ravel()
+            # data_ids = np.array(np.nonzero(colnorms_squared_new(training_feats[:, col_ids]) > 1e-6)).ravel()
 
             #  Initilization for LC-KSVD (perform KSVD in each class)
-            Dpart = training_feats[:, col_ids][:, sp.random.choice(col_ids.sum(), numPerClass, replace=False)]
-            Dpart = Dpart/splin.norm(Dpart, axis=0)
-            para_data = training_feats[:, col_ids]
-
+            # Dpart = training_feats[:, col_ids[data_ids[sp.random.choice(
+            #     data_ids.shape[0], numPerClass, replace=False)]]]
+            # Dpart = Dpart/splin.norm(Dpart, axis=0)
             # ksvd process
-            runKsvd.fit(training_feats[:, col_ids])
+            runKsvd.fit(training_feats[:, col_ids[data_ids]])
             Dinit[:, numPerClass*classid:numPerClass*(classid+1)] = runKsvd.components_
-
             dictLabel[classid, numPerClass*classid:numPerClass*(classid+1)] = 1.
 
         T = sp.eye(dictsize)  # scale factor
         Q = sp.zeros((dictsize, training_feats.shape[1]))  # energy matrix
+
         for frameid in range(training_feats.shape[1]):
+            label_training = H_train[:, frameid]
+            maxid1 = np.nonzero(label_training == np.max(label_training))[0][0]
             for itemid in range(Dinit.shape[1]):
-                Q[sp.ix_(dictLabel == itemid, H_train == frameid)] = 1.
+                label_item = dictLabel[:, itemid]
+                maxid2 = np.nonzero(label_item == np.max(label_item))[0][0]
+                if maxid1 == maxid2:
+                    Q[itemid, frameid] = 1
 
         # ksvd process
         runKsvd.fit(training_feats, Dinit=Dinit)

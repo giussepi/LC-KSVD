@@ -131,3 +131,6 @@ dmypy.json
 
 # emacs
 *~
+
+# integration files
+__init__.py
