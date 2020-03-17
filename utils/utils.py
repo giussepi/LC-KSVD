@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """ utils/utils """
 
+import scipy.linalg as splin
 import numpy as np
 
 
@@ -23,3 +24,16 @@ def colnorms_squared_new(x):
         y[blockids] = sum(x[:, blockids]**2)
 
     return y
+
+
+def normcols(matrix):
+    """
+    Returns an array with columns normalised
+
+    Args:
+        matrix: numpy array
+
+    Returns:
+        numpy_array
+    """
+    return matrix/splin.norm(matrix, axis=0)
