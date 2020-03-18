@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from numba import jit
 import numpy as np
 import scipy as sp
 import scipy.linalg as splin
 from sklearn.linear_model import orthogonal_mp_gram
 
-from .utils.utils import colnorms_squared_new, normcols
+from .utils.utils import colnorms_squared_new, normcols, timing
 
 
 class ApproximateKSVD:
@@ -90,26 +91,50 @@ class ApproximateKSVD:
 
 class DKSVD:
     """
-      Implementation of the Label consistent KSVD algorithm proposed by Zhuolin Jiang, Zhe Lin and Larry S. Davis.
-      This implementation is a translation of the matlab code released by the authors on http://users.umiacs.umd.edu/~zhuolin/projectlcksvd.html.
-      The code has been extended in order to use the related method called Discriminative KSVD proposed by Zhang, Qiang and Li, Baoxin.
-      Author: Adrien Lagrange (ad.lagrange@gmail.com)
-      Date: 25-10-2018
+    Implementation of the Label consistent KSVD algorithm proposed by Zhuolin Jiang, Zhe Lin and Larry S. Davis.
+    This implementation is a translation of the matlab code released by the authors on http://users.umiacs.umd.edu/~zhuolin/projectlcksvd.html.
+    The code has been extended in order to use the related method called Discriminative KSVD proposed by Zhang, Qiang and Li, Baoxin.
+    Original author: Adrien Lagrange (ad.lagrange@gmail.com)
+    Date: 25-10-2018
+
+    New version:
+    Author: Giussepi Lopez (giussepexy@gmail.com)
+    Date:
     """
 
-    def __init__(self):
-        super(DKSVD, self).__init__()
+    def __init__(self, **kwargs):
+        """
+        Sets initial attribute values
+        Kwargs:
+            sparsitythres    : sparsity threshold for KSVD
+            sqrt_alpha       : contribution factor
+            sqrt_beta        : contribution factor (only for LC-KSVD2)
+            dictsize         : number of dictionary items
+            iterations       : iterations for KSVD
+            iterations4ini   : iterations when initializing
+            tol              : tolerance when performing the approximate KSVD
+            timeit           : Time and print functions
+        """
+        # TODO: because we're using another ksvd algorithm the sparsitythres
+        # cannot be 30, try changing this number and or look for another implementation
+        # similar to the one used on the matlab implementation
+        self.sparsitythres = kwargs.get('sparsitythres', 15)  # 30
+        self.sqrt_alpha = kwargs.get('sqrt_alpha', 4)
+        self.sqrt_beta = kwargs.get('sqrt_beta', 2)
+        self.dictsize = kwargs.get('dictsize', 570)
+        self.iterations = kwargs.get('iterations', 50)
+        self.iterations4ini = kwargs.get('iterations4ini', 20)
+        self.tol = kwargs.get('tol', 1e-4)
+        self.timeit = kwargs.get('timeit', False)
 
-    def initialization4LCKSVD(self, training_feats, H_train, dictsize, iterations, sparsitythres, tol=1e-4):
+    @timing
+    @jit
+    def initialization4LCKSVD(self, training_feats, H_train):
         """
         Initialization for Label consistent KSVD algorithm
         Inputs
               training_feats  : training features
               H_train         : label matrix for training feature
-              dictsize        : number of dictionary items
-              iterations      : iterations
-              sparsitythres   : sparsity threshold
-              tol             : tolerance when performing the approximate KSVD
         Outputs
               Dinit           : initialized dictionary
               Tinit           : initialized linear transform matrix
@@ -117,10 +142,11 @@ class DKSVD:
               Q               : optimal code matrix for training features
         """
         numClass = H_train.shape[0]  # number of objects
-        numPerClass = round(dictsize/float(numClass))  # initial points from each class
+        numPerClass = round(self.dictsize/float(numClass))  # initial points from each class
         Dinit = sp.empty((training_feats.shape[0], numClass*numPerClass))  # for LC-Ksvd1 and LC-Ksvd2
         dictLabel = sp.zeros((numClass, numClass*numPerClass))
-        runKsvd = ApproximateKSVD(numPerClass, max_iter=iterations, tol=tol, transform_n_nonzero_coefs=sparsitythres)
+        runKsvd = ApproximateKSVD(numPerClass, max_iter=self.iterations4ini, tol=self.tol,
+                                  transform_n_nonzero_coefs=self.sparsitythres)
 
         for classid in range(numClass):
             col_ids = np.array(np.nonzero(H_train[classid, :] == 1)).ravel()
@@ -140,8 +166,8 @@ class DKSVD:
             dictLabel[classid, numPerClass*classid:numPerClass*(classid+1)] = 1.
 
         # Q (label-constraints code); T: scale factor
-        T = sp.eye(dictsize)  # scale factor
-        Q = sp.zeros((dictsize, training_feats.shape[1]))  # energy matrix
+        T = sp.eye(self.dictsize)  # scale factor
+        Q = sp.zeros((self.dictsize, training_feats.shape[1]))  # energy matrix
 
         for frameid in range(training_feats.shape[1]):
             label_training = H_train[:, frameid]
@@ -164,6 +190,8 @@ class DKSVD:
 
         return Dinit, Tinit.T, Winit.T, Q
 
+    @timing
+    @jit
     def initialization4DKSVD(self, training_feats, labels, dictsize, iterations, sparsitythres, Dinit=None, tol=1e-4):
         """
         Initialization for Discriminative KSVD algorithm
@@ -198,27 +226,25 @@ class DKSVD:
 
         return Dinit, Winit.T
 
-    def labelconsistentksvd(self, Y, Dinit, labels, iterations, sparsitythres, sqrt_alpha, Q_train, Tinit, Winit=None, sqrt_beta=None, tol=1e-4):
+    @timing
+    @jit
+    def labelconsistentksvd(self, Y, Dinit, labels, Q_train, Tinit, Winit=None):
         """
         Label consistent KSVD1 algorithm and Discriminative LC-KSVD2 implementation
         Args:
             Y               : training features
             Dinit           : initialized dictionary
             labels          : labels matrix for training feature (numberred from 1 to nb of classes)
-            iterations      : iterations for KSVD
-            sparsitythres   : sparsity threshold for KSVD
-            sqrt_alpha      : contribution factor
             Q_train         : optimal code matrix for training feature
             Tinit           : initialized transform matrix
             Winit           : initialized classifier parameters (None for LC-KSVD1)
-            sqrt_beta       : contribution factor (None for LC-KSVD1)
-            tol             : tolerance or error
         Returns:
             D               : learned dictionary
             X               : sparsed codes
             T               : learned transform matrix
             W               : learned classifier parameters
         """
+
         # H_train = sp.zeros((int(labels.max()), Y.shape[1]), dtype=float)
         # print(H_train.shape)
         # for c in range(int(labels.max())):
@@ -226,16 +252,17 @@ class DKSVD:
         H_train = labels
 
         # ksvd process
-        runKsvd = ApproximateKSVD(Dinit.shape[1], max_iter=iterations, tol=tol, transform_n_nonzero_coefs=sparsitythres)
-        if sqrt_beta is None:
+        runKsvd = ApproximateKSVD(Dinit.shape[1], max_iter=self.iterations,
+                                  tol=self.tol, transform_n_nonzero_coefs=self.sparsitythres)
+        if Winit is None:
             runKsvd.fit(
-                sp.vstack((Y, sqrt_alpha*Q_train)),
-                Dinit=normcols(sp.vstack((Dinit, sqrt_alpha*Tinit)))
+                sp.vstack((Y, self.sqrt_alpha*Q_train)),
+                Dinit=normcols(sp.vstack((Dinit, self.sqrt_alpha*Tinit)))
             )
         else:
             runKsvd.fit(
-                sp.vstack((Y, sqrt_alpha*Q_train, sqrt_beta*H_train)),
-                Dinit=normcols(sp.vstack((Dinit, sqrt_alpha*Tinit, sqrt_beta*Winit)))
+                sp.vstack((Y, self.sqrt_alpha*Q_train, self.sqrt_beta*H_train)),
+                Dinit=normcols(sp.vstack((Dinit, self.sqrt_alpha*Tinit, self.sqrt_beta*Winit)))
             )
 
         # get back the desired D, T and W (if sqrt_beta is not None)
@@ -244,81 +271,73 @@ class DKSVD:
         i_end_T = i_end_D+Tinit.shape[0]
         D = runKsvd.components_[:i_end_D, :]
         T = runKsvd.components_[i_start_T:i_end_T, :]
-        if sqrt_beta is not None:
+        if Winit is not None:
             i_start_W = i_end_T
             i_end_W = i_end_T+Winit.shape[0]
             W = runKsvd.components_[i_start_W:i_end_W, :]
 
         # normalization
-        l2norms = splin.norm(D, axis=0)[sp.newaxis, :] + tol
+        l2norms = splin.norm(D, axis=0)[sp.newaxis, :] + self.tol
         D /= l2norms
         T /= l2norms
-        T /= sqrt_alpha
+        T /= self.sqrt_alpha
         X = runKsvd.gamma_
 
-        if sqrt_beta is None:
+        if Winit is None:
             # Learning linear classifier parameters
             xxt = X.dot(X.T)
             W = splin.pinv(xxt + sp.eye(*(xxt).shape)).dot(X).dot(H_train.T)
             W = W.T
         else:
             W /= l2norms
-            W /= sqrt_beta
+            W /= self.sqrt_beta
 
         return D, X, T, W
 
-    def labelconsistentksvd1(self, Y, Dinit, labels, iterations, sparsitythres, sqrt_alpha, Q_train, Tinit, tol=1e-4):
+    def labelconsistentksvd1(self, Y, Dinit, labels, Q_train, Tinit):
         """
         Label consistent KSVD1 algorithm
         Args:
             Y               : training features
             Dinit           : initialized dictionary
             labels          : labels matrix for training feature (numberred from 1 to nb of classes)
-            iterations      : iterations for KSVD
-            sparsitythres   : sparsity threshold for KSVD
-            sqrt_alpha      : contribution factor
             Q_train         : optimal code matrix for training feature
             Tinit           : initialized transform matrix
-            tol             : tolerance or error
         Returns:
             D               : learned dictionary
             X               : sparsed codes
             T               : learned transform matrix
             W               : learned classifier parameters
         """
-        return self.labelconsistentksvd(Y, Dinit, labels, iterations, sparsitythres, sqrt_alpha, Q_train, Tinit, tol=tol)
+        return self.labelconsistentksvd(Y, Dinit, labels, Q_train, Tinit)
 
-    def labelconsistentksvd2(self, Y, Dinit, labels, iterations, sparsitythres, sqrt_alpha, Q_train, Tinit, Winit=None, sqrt_beta=None, tol=1e-4):
+    def labelconsistentksvd2(self, Y, Dinit, labels, Q_train, Tinit, Winit=None):
         """
         Discriminative LC-KSVD2 implementation
         Args:
             Y               : training features
             Dinit           : initialized dictionary
             labels          : labels matrix for training feature (numberred from 1 to nb of classes)
-            iterations      : iterations for KSVD
-            sparsitythres   : sparsity threshold for KSVD
-            sqrt_alpha      : contribution factor
             Q_train         : optimal code matrix for training feature
             Tinit           : initialized transform matrix
             Winit           : initialized classifier parameters
-            sqrt_beta       : contribution factor
-            tol             : tolerance or error
         Returns:
             D               : learned dictionary
             X               : sparsed codes
             T               : learned transform matrix
             W               : learned classifier parameters
         """
-        return self.labelconsistentksvd2(Y, Dinit, labels, iterations, sparsitythres, sqrt_alpha, Q_train, Tinit, Winit, sqrt_beta, tol=tol)
+        return self.labelconsistentksvd(Y, Dinit, labels, Q_train, Tinit, Winit)
 
-    def classification(self, D, W, data, sparsity):
+    @timing
+    @jit
+    def classification(self, D, W, data):
         """
         Classification
         Args:
             D                 : learned dictionary
             W                 : learned classifier parameters
             data              : testing features
-            sparsity          : sparsity threshold
         Returns:
             prediction_labels : prediction labels
             gamma             : learned representation
@@ -326,7 +345,7 @@ class DKSVD:
 
         # sparse coding
         G = D.T.dot(D)
-        gamma = orthogonal_mp_gram(G, D.T.dot(data), copy_Gram=False, copy_Xy=False, n_nonzero_coefs=sparsity)
+        gamma = orthogonal_mp_gram(G, D.T.dot(data), copy_Gram=False, copy_Xy=False, n_nonzero_coefs=self.sparsitythres)
         # classify process
         prediction = np.argmax(W.dot(gamma), axis=0)
 
