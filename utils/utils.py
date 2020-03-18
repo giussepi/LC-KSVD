@@ -60,8 +60,9 @@ def timing(function):
 
         if getattr(args[0], 'timeit', False):
             end = time()
+            name = getattr(function, 'py_func.__qualname__', getattr(function, '__name__', function.__str__()))
             print('func:{} processed in {:.4f} seconds'.format(
-                function.py_func.__qualname__, end-start))
+                name, end-start))
 
         return result
 

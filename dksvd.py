@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from numba import jit
+# from numba import jit
 import numpy as np
 import scipy as sp
 import scipy.linalg as splin
@@ -128,14 +128,14 @@ class DKSVD:
         self.timeit = kwargs.get('timeit', False)
 
     @timing
-    @jit
+    # @jit
     def initialization4LCKSVD(self, training_feats, H_train):
         """
         Initialization for Label consistent KSVD algorithm
-        Inputs
+        Args:
               training_feats  : training features
               H_train         : label matrix for training feature
-        Outputs
+        Returns:
               Dinit           : initialized dictionary
               Tinit           : initialized linear transform matrix
               Winit           : initialized classifier parameters
@@ -191,19 +191,15 @@ class DKSVD:
         return Dinit, Tinit.T, Winit.T, Q
 
     @timing
-    @jit
-    def initialization4DKSVD(self, training_feats, labels, dictsize, iterations, sparsitythres, Dinit=None, tol=1e-4):
+    # @jit
+    def initialization4DKSVD(self, training_feats, labels, Dinit=None):
         """
         Initialization for Discriminative KSVD algorithm
 
         Inputs
               training_feats  : training features
               labels          : label matrix for training feature (numberred from 1 to nb of classes)
-              dictsize        : number of dictionary items
-              iterations      : iterations
-              sparsitythres   : sparsity threshold
               Dinit           : initial guess for dictionary
-              tol             : tolerance when performing the approximate KSVD
         Outputs
               Dinit           : initialized dictionary
               Winit           : initialized classifier parameters
@@ -214,11 +210,12 @@ class DKSVD:
         H_train = labels
 
         if Dinit is None:
-            Dinit = training_feats[:, sp.random.choice(training_feats.shape[1], dictsize, replace=False)]
+            Dinit = training_feats[:, sp.random.choice(training_feats.shape[1], self.dictsize, replace=False)]
 
         # ksvd process
-        runKsvd = ApproximateKSVD(dictsize, max_iter=iterations, tol=tol, transform_n_nonzero_coefs=sparsitythres)
-        runKsvd.fit(training_feats, Dinit=Dinit)
+        runKsvd = ApproximateKSVD(self.dictsize, max_iter=self.iterations4ini, tol=self.tol,
+                                  transform_n_nonzero_coefs=self.sparsitythres)
+        runKsvd.fit(training_feats, Dinit=normcols(Dinit))
 
         # learning linear classifier parameters
         Winit = splin.pinv(runKsvd.gamma_.dot(runKsvd.gamma_.T) +
@@ -227,7 +224,7 @@ class DKSVD:
         return Dinit, Winit.T
 
     @timing
-    @jit
+    # @jit
     def labelconsistentksvd(self, Y, Dinit, labels, Q_train, Tinit, Winit=None):
         """
         Label consistent KSVD1 algorithm and Discriminative LC-KSVD2 implementation
@@ -330,7 +327,7 @@ class DKSVD:
         return self.labelconsistentksvd(Y, Dinit, labels, Q_train, Tinit, Winit)
 
     @timing
-    @jit
+    # @jit
     def classification(self, D, W, data):
         """
         Classification
