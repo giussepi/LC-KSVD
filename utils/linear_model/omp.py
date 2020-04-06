@@ -6,12 +6,10 @@ import warnings
 
 import cupy as np
 from cupyx.scipy import linalg
-# from scipy.linalg.lapack import get_lapack_funcs
 import pycuda.autoinit
 import pycuda.gpuarray as gpuarray
 from skcuda import cusolver, cublas
 from sklearn.linear_model._omp import premature
-# from sklearn.utils import check_array
 
 # TODO: get_blas_funcs not used anymore, remove it and its files
 # from .blas import get_blas_funcs
@@ -84,11 +82,6 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
         Xy = Xy.copy()
 
     min_float = np.finfo(Gram.dtype).eps
-    # nrm2, swap = linalg.get_blas_funcs(('nrm2', 'swap'), (Gram,))
-    # nrm2, swap = get_blas_funcs(('nrm2', 'swap'), (Gram,))
-    # replaced its GPU version
-    # potrs, = get_lapack_funcs(('potrs',), (Gram,))
-
     indices = np.arange(len(Gram))  # keeping track of swapping
     alpha = Xy
     tol_curr = tol_0
@@ -117,9 +110,6 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
                                     trans=0, lower=1,
                                     overwrite_b=True,
                                     check_finite=False)
-
-            # v = nrm2(L[n_active, :n_active]) ** 2
-            # v = sqrt(L[n_active, :n_active].T.dot(L[n_active, :n_active]))**2
             v = np.power(np.linalg.norm(L[n_active, :n_active]), 2)
             Lkk = Gram[lam, lam] - v
             if Lkk <= min_float:  # selected atoms are dependent
@@ -129,28 +119,19 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
         else:
             L[0, 0] = np.sqrt(Gram[lam, lam])
 
-        # TODO: REVIEW this is working properly
-        # Gram[n_active], Gram[lam] = swap(Gram[n_active], Gram[lam])
         Gram[[n_active, lam]] = Gram[[lam, n_active]]
-        # TODO: REVIEW this is working properly
-        # Gram.T[n_active], Gram.T[lam] = swap(Gram.T[n_active], Gram.T[lam])
         Gram.T[[n_active, lam]] = Gram.T[[lam, n_active]]
-        # TODO: HEREEEE this looks bad but seems that this is how it has been done
-        # on sklearn
+        # NOTE: These 2 lines looks wrong but seems that this is how it has been done
+        # on sklearn.
         indices[n_active], indices[lam] = indices[lam], indices[n_active]
         Xy[n_active], Xy[lam] = Xy[lam], Xy[n_active]
         n_active += 1
         # solves LL'x = X'y as a composition of two triangular systems
-
-        # gamma, _ = potrs(L[:n_active, :n_active], Xy[:n_active], lower=True,
-        #                  overwrite_b=False)
-        # gamma, _ = potrs(np.asnumpy(L[:n_active, :n_active]), np.asnumpy(Xy[:n_active]), lower=True,
-        #                   overwrite_b=False)
-
         cuda_solver_dn_handle = cusolver.cusolverDnCreate()
         # NOTE: If there are problems because the GPU does not support float64/double
         # then just change np.float64 and cusolver.cusolverDnDpotrs to np.float32 and
         # cusolver.cusolverDnSpotrs respectively
+        # change here
         A = gpuarray.to_gpu(np.asnumpy(L[:n_active, :n_active].copy(), order='F')).astype(np.float64)
         # stream = cusolver.cusolverDnGetStream(cuda_solver_dn_handle)
         # cusolver.cusolverDnSetStream(cuda_solver_dn_handle, stream)
@@ -167,7 +148,9 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
         #     workspace=workspace_gpu.gpudata, devIpiv=lwork, devInfo=dev_info_gpu.gpudata
         # )
         dev_info_gpu_2 = gpuarray.zeros(1, np.int32)
+        # change here
         solution = gpuarray.to_gpu(np.asnumpy(Xy[:n_active])).astype(np.float64)
+        # change here
         cusolver.cusolverDnDpotrs(
             handle=cuda_solver_dn_handle, uplo=uplo, n=L[:n_active, :n_active].shape[0],
             nrhs=1, a=A.gpudata,
@@ -176,8 +159,6 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
         )
         cusolver.cusolverDnDestroy(cuda_solver_dn_handle)
         gamma = np.array(solution.get())
-        # gamma_ = np.array(gamma)
-        # print('gamma {}, solution {}'.format(gamma_, gamma))
 
         if return_path:
             coefs[:n_active, n_active - 1] = gamma

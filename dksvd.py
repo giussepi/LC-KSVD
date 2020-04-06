@@ -5,7 +5,7 @@ import cupy.linalg as splin
 import scipy as sp
 
 from .utils.linear_model.omp import orthogonal_mp_gram
-from .utils.utils import colnorms_squared_new, normcols, timing
+from .utils.utils import normcols, timing  # , colnorms_squared_new
 
 
 class ApproximateKSVD:
@@ -33,14 +33,12 @@ class ApproximateKSVD:
                 continue
 
             D[:, j] = 0
-            # g = gamma[j, I]
             g = gamma[j][I]
             r = X[:, I] - D.dot(gamma[:, I])
             d = r.dot(g)
             d /= splin.norm(d)
             g = r.T.dot(d)
             D[:, j] = d
-            # gamma[j, I] = g.T
             gamma[j][I] = g.T
 
         return D, gamma
@@ -160,6 +158,7 @@ class DKSVD:
             col_ids = np.array(np.nonzero(H_train[classid, :] == 1)).ravel()
             # TODO: I think the following two lines are equivalent. Remove one
             data_ids = np.array(np.nonzero(np.sum(training_feats[:, col_ids]**2, axis=0) > 1e-6)).ravel()
+            # NOTE: If need to conserve memory the following lines will compute it by blocks
             # data_ids = np.array(np.nonzero(colnorms_squared_new(training_feats[:, col_ids]) > 1e-6)).ravel()
 
             Dpart = training_feats[:, col_ids[np.random.choice(data_ids, numPerClass, replace=False)]]
