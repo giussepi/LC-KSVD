@@ -11,10 +11,6 @@ import pycuda.gpuarray as gpuarray
 from skcuda import cusolver, cublas
 from sklearn.linear_model._omp import premature
 
-# TODO: get_blas_funcs not used anymore, remove it and its files
-# from .blas import get_blas_funcs
-# TODO: get_lapack_funcs not used anymore, remove it and its files
-# from .lapack import get_lapack_funcs
 from ..validation import check_array
 
 
