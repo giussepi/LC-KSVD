@@ -4,8 +4,8 @@
 from functools import wraps
 from time import time
 
-import numpy as np
-import scipy.linalg as splin
+import cupy as np
+import cupy.linalg as splin
 
 
 def colnorms_squared_new(x):
@@ -24,7 +24,7 @@ def colnorms_squared_new(x):
     blocksize = 2000
     for i in range(0, x.shape[1], blocksize):
         blockids = list(range(min(i+blocksize-1, x.shape[1])))
-        y[blockids] = sum(x[:, blockids]**2)
+        y[blockids] = np.sum(x[:, blockids]**2)
 
     return y
 

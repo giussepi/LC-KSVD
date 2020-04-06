@@ -1,0 +1,5 @@
+cupy-cuda101==7.2.0
+numpy==1.18.1
+Mako==1.1.2
+pycuda==2019.1.2
+scikit-cuda==0.5.3

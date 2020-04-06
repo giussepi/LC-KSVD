@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# from numba import jit
-import numpy as np
+import cupy as np
+import cupy.linalg as splin
 import scipy as sp
-import scipy.linalg as splin
-from sklearn.linear_model import orthogonal_mp_gram
 
+from .utils.linear_model.omp import orthogonal_mp_gram
 from .utils.utils import colnorms_squared_new, normcols, timing
 
 
@@ -29,26 +28,34 @@ class ApproximateKSVD:
     def _update_dict(self, X, D, gamma):
         for j in range(self.n_components):
             I = gamma[j, :] > 0
-            if sp.sum(I) == 0:
+
+            if np.sum(I) == 0:
                 continue
 
             D[:, j] = 0
-            g = gamma[j, I]
+            # g = gamma[j, I]
+            g = gamma[j][I]
             r = X[:, I] - D.dot(gamma[:, I])
             d = r.dot(g)
             d /= splin.norm(d)
             g = r.T.dot(d)
             D[:, j] = d
-            gamma[j, I] = g.T
+            # gamma[j, I] = g.T
+            gamma[j][I] = g.T
+
         return D, gamma
 
     def _initialize(self, X):
-        if min(X.shape) < self.n_components:
-            D = sp.random.randn(X.shape[0], self.n_components)
+        # TODO: review these lines, several replacements were done
+        __import__("pdb").set_trace()
+
+        if np.min(X.shape) < self.n_components:
+            D = np.random.randn(X.shape[0], self.n_components)
         else:
+            # TODO: replace thisline with its cuda version
             u, s, vt = sp.sparse.linalg.svds(X, k=self.n_components)
-            D = sp.dot(u, sp.diag(s))
-        D /= splin.norm(D, axis=0)[sp.newaxis, :]
+            D = np.dot(u, np.diag(s))
+        D /= splin.norm(D, axis=0)[np.newaxis, :]
         return D
 
     def _transform(self, D, X):
@@ -72,7 +79,7 @@ class ApproximateKSVD:
         if Dinit is None:
             D = self._initialize(X)
         else:
-            D = Dinit / splin.norm(Dinit, axis=0)[sp.newaxis, :]
+            D = Dinit / splin.norm(Dinit, axis=0)[np.newaxis, :]
 
         for i in range(self.max_iter):
             gamma = self._transform(D, X)
@@ -128,7 +135,6 @@ class DKSVD:
         self.timeit = kwargs.get('timeit', False)
 
     @timing
-    # @jit
     def initialization4LCKSVD(self, training_feats, H_train):
         """
         Initialization for Label consistent KSVD algorithm
@@ -141,23 +147,22 @@ class DKSVD:
               Winit           : initialized classifier parameters
               Q               : optimal code matrix for training features
         """
-        numClass = H_train.shape[0]  # number of objects
-        numPerClass = round(self.dictsize/float(numClass))  # initial points from each class
-        Dinit = sp.empty((training_feats.shape[0], numClass*numPerClass))  # for LC-Ksvd1 and LC-Ksvd2
-        dictLabel = sp.zeros((numClass, numClass*numPerClass))
+        numClass = H_train.shape[0]  # number of classes (38, 1216)
+        numPerClass = round(self.dictsize/float(numClass))  # initial points from each class 15
+        Dinit = np.empty((training_feats.shape[0], numClass*numPerClass))  # for LC-Ksvd1 and LC-Ksvd2 (504, 570)
+
+        # training_feats.shape (504, 1216)
+        dictLabel = np.zeros((numClass, numClass*numPerClass))  # (38, 570)
         runKsvd = ApproximateKSVD(numPerClass, max_iter=self.iterations4ini, tol=self.tol,
                                   transform_n_nonzero_coefs=self.sparsitythres)
 
         for classid in range(numClass):
             col_ids = np.array(np.nonzero(H_train[classid, :] == 1)).ravel()
             # TODO: I think the following two lines are equivalent. Remove one
-            data_ids = np.array(np.nonzero(sp.sum(training_feats[:, col_ids]**2, axis=0) > 1e-6)).ravel()
+            data_ids = np.array(np.nonzero(np.sum(training_feats[:, col_ids]**2, axis=0) > 1e-6)).ravel()
             # data_ids = np.array(np.nonzero(colnorms_squared_new(training_feats[:, col_ids]) > 1e-6)).ravel()
 
-            # Initilization for LC-KSVD(perform KSVD in each class)
-            # Dpart = training_feats[:, col_ids[data_ids[sp.random.choice(
-            #     data_ids.shape[0], numPerClass, replace=False)]]]
-            Dpart = training_feats[:, col_ids[sp.random.choice(data_ids, numPerClass, replace=False)]]
+            Dpart = training_feats[:, col_ids[np.random.choice(data_ids, numPerClass, replace=False)]]
             # normalization
             Dpart = normcols(Dpart)
             # ksvd process
@@ -166,8 +171,8 @@ class DKSVD:
             dictLabel[classid, numPerClass*classid:numPerClass*(classid+1)] = 1.
 
         # Q (label-constraints code); T: scale factor
-        T = sp.eye(self.dictsize)  # scale factor
-        Q = sp.zeros((self.dictsize, training_feats.shape[1]))  # energy matrix
+        T = np.eye(self.dictsize)  # scale factor
+        Q = np.zeros((self.dictsize, training_feats.shape[1]))  # energy matrix
 
         for frameid in range(training_feats.shape[1]):
             label_training = H_train[:, frameid]
@@ -184,14 +189,13 @@ class DKSVD:
 
         # learning linear classifier parameters
         xxt = Xtemp.dot(Xtemp.T)
-        tmp_result = splin.pinv(xxt+sp.eye(*xxt.shape)).dot(Xtemp)
+        tmp_result = splin.pinv(xxt+np.eye(*xxt.shape)).dot(Xtemp)
         Winit = tmp_result.dot(H_train.T)
         Tinit = tmp_result.dot(Q.T)
 
         return Dinit, Tinit.T, Winit.T, Q
 
     @timing
-    # @jit
     def initialization4DKSVD(self, training_feats, labels, Dinit=None):
         """
         Initialization for Discriminative KSVD algorithm
@@ -210,7 +214,7 @@ class DKSVD:
         H_train = labels
 
         if Dinit is None:
-            Dinit = training_feats[:, sp.random.choice(training_feats.shape[1], self.dictsize, replace=False)]
+            Dinit = training_feats[:, np.random.choice(training_feats.shape[1], self.dictsize, replace=False)]
 
         # ksvd process
         runKsvd = ApproximateKSVD(self.dictsize, max_iter=self.iterations4ini, tol=self.tol,
@@ -219,12 +223,11 @@ class DKSVD:
 
         # learning linear classifier parameters
         Winit = splin.pinv(runKsvd.gamma_.dot(runKsvd.gamma_.T) +
-                           sp.eye(runKsvd.gamma_.shape[0])).dot(runKsvd.gamma_).dot(H_train.T)
+                           np.eye(runKsvd.gamma_.shape[0])).dot(runKsvd.gamma_).dot(H_train.T)
 
         return Dinit, Winit.T
 
     @timing
-    # @jit
     def labelconsistentksvd(self, Y, Dinit, labels, Q_train, Tinit, Winit=None):
         """
         Label consistent KSVD1 algorithm and Discriminative LC-KSVD2 implementation
@@ -253,13 +256,13 @@ class DKSVD:
                                   tol=self.tol, transform_n_nonzero_coefs=self.sparsitythres)
         if Winit is None:
             runKsvd.fit(
-                sp.vstack((Y, self.sqrt_alpha*Q_train)),
-                Dinit=normcols(sp.vstack((Dinit, self.sqrt_alpha*Tinit)))
+                np.vstack((Y, self.sqrt_alpha*Q_train)),
+                Dinit=normcols(np.vstack((Dinit, self.sqrt_alpha*Tinit)))
             )
         else:
             runKsvd.fit(
-                sp.vstack((Y, self.sqrt_alpha*Q_train, self.sqrt_beta*H_train)),
-                Dinit=normcols(sp.vstack((Dinit, self.sqrt_alpha*Tinit, self.sqrt_beta*Winit)))
+                np.vstack((Y, self.sqrt_alpha*Q_train, self.sqrt_beta*H_train)),
+                Dinit=normcols(np.vstack((Dinit, self.sqrt_alpha*Tinit, self.sqrt_beta*Winit)))
             )
 
         # get back the desired D, T and W (if sqrt_beta is not None)
@@ -274,7 +277,7 @@ class DKSVD:
             W = runKsvd.components_[i_start_W:i_end_W, :]
 
         # normalization
-        l2norms = splin.norm(D, axis=0)[sp.newaxis, :] + self.tol
+        l2norms = splin.norm(D, axis=0)[np.newaxis, :] + self.tol
         D /= l2norms
         T /= l2norms
         T /= self.sqrt_alpha
@@ -283,7 +286,7 @@ class DKSVD:
         if Winit is None:
             # Learning linear classifier parameters
             xxt = X.dot(X.T)
-            W = splin.pinv(xxt + sp.eye(*(xxt).shape)).dot(X).dot(H_train.T)
+            W = splin.pinv(xxt + np.eye(*(xxt).shape)).dot(X).dot(H_train.T)
             W = W.T
         else:
             W /= l2norms
@@ -327,7 +330,6 @@ class DKSVD:
         return self.labelconsistentksvd(Y, Dinit, labels, Q_train, Tinit, Winit)
 
     @timing
-    # @jit
     def classification(self, D, W, data):
         """
         Classification
