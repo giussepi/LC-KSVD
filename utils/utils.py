@@ -50,6 +50,11 @@ def timing(function):
 
     Note: The first argument of the function or method must contain an attribute
           timeit = False to disable the time trancking and printing.
+
+    Usage:
+    @timing
+    def my_function(a1, a2):
+        pass
     """
     @wraps(function)
     def wrap(*args, **kw):

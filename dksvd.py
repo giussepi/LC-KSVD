@@ -230,19 +230,27 @@ class DKSVD:
     def labelconsistentksvd(self, Y, Dinit, labels, Q_train, Tinit, Winit=None):
         """
         Label consistent KSVD1 algorithm and Discriminative LC-KSVD2 implementation
+
         Args:
-            Y               : training features
-            Dinit           : initialized dictionary
-            labels          : labels matrix for training feature (numberred from 1 to nb of classes)
-            Q_train         : optimal code matrix for training feature
-            Tinit           : initialized transform matrix
-            Winit           : initialized classifier parameters (None for LC-KSVD1)
+            Y       (cupy.ndarray) : training features
+            Dinit   (cupy.ndarray) : initialized dictionary
+            labels  (cupy.ndarray) : labels matrix for training feature (numberred from 1 to nb of classes)
+            Q_train (cupy.ndarray) : optimal code matrix for training feature
+            Tinit   (cupy.ndarray) : initialized transform matrix
+            Winit   (cupy.ndarray) : initialized classifier parameters (None for LC-KSVD1)
+
         Returns:
-            D               : learned dictionary
-            X               : sparsed codes
-            T               : learned transform matrix
-            W               : learned classifier parameters
+            D       (cupy.ndarray) : learned dictionary
+            X       (cupy.ndarray) : sparsed codes
+            T       (cupy.ndarray) : learned transform matrix
+            W       (cupy.ndarray) : learned classifier parameters
         """
+        assert isinstance(Y,  np.ndarray)
+        assert isinstance(Dinit,  np.ndarray)
+        assert isinstance(labels,  np.ndarray)
+        assert isinstance(Q_train,  np.ndarray)
+        assert isinstance(Tinit,  np.ndarray)
+        assert Winit is None or isinstance(Winit, np.ndarray)
 
         # H_train = sp.zeros((int(labels.max()), Y.shape[1]), dtype=float)
         # print(H_train.shape)
@@ -286,6 +294,7 @@ class DKSVD:
             # Learning linear classifier parameters
             xxt = X.dot(X.T)
             W = splin.pinv(xxt + np.eye(*(xxt).shape)).dot(X).dot(H_train.T)
+            # CUSOLVERError: CUSOLVER_STATUS_EXECUTION_FAILED
             W = W.T
         else:
             W /= l2norms
@@ -344,7 +353,15 @@ class DKSVD:
         # sparse coding
         G = D.T.dot(D)
         gamma = orthogonal_mp_gram(G, D.T.dot(data), copy_Gram=False, copy_Xy=False, n_nonzero_coefs=self.sparsitythres)
+
         # classify process
-        prediction = np.argmax(W.dot(gamma), axis=0)
+        # TODO: find out why this error happens and fix it!
+        # CUBLASError: CUBLAS_STATUS_INTERNAL_ERROR
+        # when called 2nd time cupy.cuda.cublas.CUBLASError: CUBLAS_STATUS_296EXECUTION_FAI
+        # It's fixed when using a float32 data; but we don't want that!
+        # prediction = np.argmax(W.dot(gamma), axis=0)
+        # Temporary workaround:
+        # Performing the last dot product on CPU through numpy
+        prediction = np.argmax(np.array(np.asnumpy(W).dot(np.asnumpy(gamma))), axis=0)
 
         return prediction, gamma

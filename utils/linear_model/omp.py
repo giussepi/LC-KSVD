@@ -158,8 +158,22 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
 
         if return_path:
             coefs[:n_active, n_active - 1] = gamma
-        beta = np.dot(Gram[:, :n_active], gamma)
+        # __import__("pdb").set_trace()
+        # CUBLASError: CUBLAS_STATUS_EXECUTION_FAILED
+        # when called for 2nd time it works... it's very weird
+        # 43
+        # print(Gram[:, :n_active].shape, gamma.shape)
+        # TODO: Not sure why CUBLASError: CUBLAS_STATUS_EXECUTION_FAILED is raised
+        #       nor why when calling np.dot for the second time works...
+        try:
+            beta = np.dot(Gram[:, :n_active], gamma)
+        except Exception as error:
+            beta = np.dot(Gram[:, :n_active], gamma)
+            # print(error)
+        # print(beta)
+
         alpha = Xy - beta
+
         if tol is not None:
             tol_curr += delta
             delta = np.inner(gamma, beta[:n_active])
@@ -289,6 +303,7 @@ def orthogonal_mp_gram(Gram, Xy, n_nonzero_coefs=None, tol=None,
         coef = np.zeros((len(Gram), Xy.shape[1]))
 
     n_iters = []
+
     for k in range(Xy.shape[1]):
         out = _gram_omp(
             Gram, Xy[:, k], n_nonzero_coefs,

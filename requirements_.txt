@@ -3,3 +3,4 @@ numpy==1.18.1
 Mako==1.1.2
 pycuda==2019.1.2
 scikit-cuda==0.5.3
+cupy-cuda102==7.3.0  # install the one appropriate to your cuda version (nvcc -V)
