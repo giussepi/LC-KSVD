@@ -24,7 +24,7 @@ def colnorms_squared_new(x):
     blocksize = 2000
     for i in range(0, x.shape[1], blocksize):
         blockids = list(range(min(i+blocksize-1, x.shape[1])))
-        y[blockids] = np.sum(x[:, blockids]**2)
+        y[blockids] = np.sum(np.power(x[:, blockids], 2))
 
     return y
 
@@ -39,7 +39,7 @@ def normcols(matrix):
     Returns:
         numpy_array
     """
-    return matrix/splin.norm(matrix, axis=0)
+    return np.divide(matrix, splin.norm(matrix, axis=0))
 
 
 def timing(function):

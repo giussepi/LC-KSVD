@@ -95,7 +95,7 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
 
     while True:
         lam = np.argmax(np.abs(alpha))
-        if lam < n_active or alpha[lam] ** 2 < min_float:
+        if lam < n_active or np.power(alpha[lam], 2) < min_float:
             # selected same atom twice, or inner product too small
             warnings.warn(premature, RuntimeWarning, stacklevel=3)
             break
@@ -107,7 +107,7 @@ def _gram_omp(Gram, Xy, n_nonzero_coefs, tol_0=None, tol=None,
                                     overwrite_b=True,
                                     check_finite=False)
             v = np.power(np.linalg.norm(L[n_active, :n_active]), 2)
-            Lkk = Gram[lam, lam] - v
+            Lkk = np.subtract(Gram[lam, lam], v)
             if Lkk <= min_float:  # selected atoms are dependent
                 warnings.warn(premature, RuntimeWarning, stacklevel=3)
                 break

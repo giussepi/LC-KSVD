@@ -34,9 +34,9 @@ class ApproximateKSVD:
 
             D[:, j] = 0
             g = gamma[j][I]
-            r = X[:, I] - D.dot(gamma[:, I])
+            r = np.subtract(X[:, I], D.dot(gamma[:, I]))
             d = r.dot(g)
-            d /= splin.norm(d)
+            d = np.divide(d, splin.norm(d))
             g = r.T.dot(d)
             D[:, j] = d
             gamma[j][I] = g.T
@@ -53,7 +53,7 @@ class ApproximateKSVD:
             # TODO: replace thisline with its cuda version
             u, s, vt = sp.sparse.linalg.svds(X, k=self.n_components)
             D = np.dot(u, np.diag(s))
-        D /= splin.norm(D, axis=0)[np.newaxis, :]
+        D = np.divide(D, splin.norm(D, axis=0)[np.newaxis, :])
         return D
 
     def _transform(self, D, X):
@@ -77,11 +77,11 @@ class ApproximateKSVD:
         if Dinit is None:
             D = self._initialize(X)
         else:
-            D = Dinit / splin.norm(Dinit, axis=0)[np.newaxis, :]
+            D = np.divide(Dinit, splin.norm(Dinit, axis=0)[np.newaxis, :])
 
         for i in range(self.max_iter):
             gamma = self._transform(D, X)
-            e = splin.norm(X - D.dot(gamma))
+            e = splin.norm(np.subtract(X, D.dot(gamma)))
             if e < self.tol:
                 break
             D, gamma = self._update_dict(X, D, gamma)
@@ -157,7 +157,7 @@ class DKSVD:
         for classid in range(numClass):
             col_ids = np.array(np.nonzero(H_train[classid, :] == 1)).ravel()
             # TODO: I think the following two lines are equivalent. Remove one
-            data_ids = np.array(np.nonzero(np.sum(training_feats[:, col_ids]**2, axis=0) > 1e-6)).ravel()
+            data_ids = np.array(np.nonzero(np.sum(np.power(training_feats[:, col_ids], 2), axis=0) > 1e-6)).ravel()
             # NOTE: If need to conserve memory the following lines will compute it by blocks
             # data_ids = np.array(np.nonzero(colnorms_squared_new(training_feats[:, col_ids]) > 1e-6)).ravel()
 
@@ -188,7 +188,7 @@ class DKSVD:
 
         # learning linear classifier parameters
         xxt = Xtemp.dot(Xtemp.T)
-        tmp_result = splin.pinv(xxt+np.eye(*xxt.shape)).dot(Xtemp)
+        tmp_result = splin.pinv(np.add(xxt, np.eye(*xxt.shape))).dot(Xtemp)
         Winit = tmp_result.dot(H_train.T)
         Tinit = tmp_result.dot(Q.T)
 
@@ -221,8 +221,9 @@ class DKSVD:
         runKsvd.fit(training_feats, Dinit=normcols(Dinit))
 
         # learning linear classifier parameters
-        Winit = splin.pinv(runKsvd.gamma_.dot(runKsvd.gamma_.T) +
-                           np.eye(runKsvd.gamma_.shape[0])).dot(runKsvd.gamma_).dot(H_train.T)
+        Winit = splin\
+            .pinv(np.add(runKsvd.gamma_.dot(runKsvd.gamma_.T), np.eye(runKsvd.gamma_.shape[0])))\
+            .dot(runKsvd.gamma_).dot(H_train.T)
 
         return Dinit, Winit.T
 
@@ -263,13 +264,13 @@ class DKSVD:
                                   tol=self.tol, transform_n_nonzero_coefs=self.sparsitythres)
         if Winit is None:
             runKsvd.fit(
-                np.vstack((Y, self.sqrt_alpha*Q_train)),
-                Dinit=normcols(np.vstack((Dinit, self.sqrt_alpha*Tinit)))
+                np.vstack((Y, np.multiply(self.sqrt_alpha, Q_train))),
+                Dinit=normcols(np.vstack((Dinit, np.multiply(self.sqrt_alpha, Tinit))))
             )
         else:
             runKsvd.fit(
-                np.vstack((Y, self.sqrt_alpha*Q_train, self.sqrt_beta*H_train)),
-                Dinit=normcols(np.vstack((Dinit, self.sqrt_alpha*Tinit, self.sqrt_beta*Winit)))
+                np.vstack((Y, np.multiply(self.sqrt_alpha, Q_train), np.multiply(self.sqrt_beta, H_train))),
+                Dinit=normcols(np.vstack((Dinit, np.multiply(self.sqrt_alpha, Tinit), np.multiply(self.sqrt_beta, Winit))))
             )
 
         # get back the desired D, T and W (if sqrt_beta is not None)
@@ -285,20 +286,20 @@ class DKSVD:
 
         # normalization
         l2norms = splin.norm(D, axis=0)[np.newaxis, :] + self.tol
-        D /= l2norms
-        T /= l2norms
-        T /= self.sqrt_alpha
+        D = np.divide(D, l2norms)
+        T = np.divide(T, l2norms)
+        T = np.divide(T, self.sqrt_alpha)
         X = runKsvd.gamma_
 
         if Winit is None:
             # Learning linear classifier parameters
             xxt = X.dot(X.T)
-            W = splin.pinv(xxt + np.eye(*(xxt).shape)).dot(X).dot(H_train.T)
+            W = splin.pinv(np.add(xxt, np.eye(*(xxt).shape))).dot(X).dot(H_train.T)
             # CUSOLVERError: CUSOLVER_STATUS_EXECUTION_FAILED
             W = W.T
         else:
-            W /= l2norms
-            W /= self.sqrt_beta
+            W = np.divide(W, l2norms)
+            W = np.divide(W, self.sqrt_beta)
 
         return D, X, T, W
 
