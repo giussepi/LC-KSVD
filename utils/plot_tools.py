@@ -127,8 +127,10 @@ class LearnedRepresentationPlotter:
 
         for index, item in enumerate(zip(self.clusters, self.colours)):
             np_cluster = np.array(tuple(item[0]))
-            plt.plot(np_cluster[:, 0].tolist(), np_cluster[:, 1].tolist(),
-                     marker, color=item[1], label=self.label_index[index])
+
+            if np_cluster.any():
+                plt.plot(np_cluster[:, 0].tolist(), np_cluster[:, 1].tolist(),
+                         marker, color=item[1], label=self.label_index[index])
 
     def __plot_and_save(self, show_legend=False, show_grid=False, file_saving_name=''):
         """
