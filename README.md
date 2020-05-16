@@ -82,7 +82,7 @@ predictions, gamma = lcksvd.classification(D, W, data['testing_feats'])
 COLOURS = tuple(['r', 'g', 'b', 'orange'])
 label_index = {0: 'Normal', 1: 'Benign', 2: 'In Situ', 3: 'Invasive'}
 
-# plot_basic_figureb
+# plot_basic_figure
 LearnedRepresentationPlotter(predictions=predictions, gamma=gamma,label_index=label_index, custom_colours=COLOURS)(simple='')
 # plot_colored_basic_figure
 LearnedRepresentationPlotter(predictions=predictions, gamma=gamma,label_index=label_index, custom_colours=COLOURS)()
