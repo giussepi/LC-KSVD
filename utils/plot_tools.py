@@ -111,26 +111,33 @@ class LearnedRepresentationPlotter:
     def __plot_vertical_lines(self):
         """ Plots vertical lines that separates signals from different classes """
         jump = 0
-        for length in self.cluster_lengths:
+        num_clusters = len(self.cluster_lengths)
+        for index, length in enumerate(self.cluster_lengths):
             print("cluster length {}".format(length))
-            plt.axvline(length + jump, c='black')
-            jump += length
+            if index != num_clusters - 1:
+                plt.axvline(length + jump, c='black')
+                jump += length
 
-    def __plot_clusters(self, marker='.'):
+    def __plot_clusters(self, marker='.', markersize=12):
         """
         Plots the cluster using the provided marker
 
         Args:
-            marker (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            marker       (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            markersize (float): marker size (only works when marker != ',')
         """
         assert isinstance(marker, str)
+        assert isinstance(markersize, float)
 
         for index, item in enumerate(zip(self.clusters, self.colours)):
             np_cluster = np.array(tuple(item[0]))
 
             if np_cluster.any():
-                plt.plot(np_cluster[:, 0].tolist(), np_cluster[:, 1].tolist(),
-                         marker, color=item[1], label=self.label_index[index])
+                plt.plot(
+                    np_cluster[:, 0].tolist(), np_cluster[:, 1].tolist(),
+                    marker, markersize=markersize, color=item[1],
+                    label=self.label_index[index]
+                )
 
     def __plot_and_save(self, show_legend=False, show_grid=False, file_saving_name=''):
         """
@@ -176,37 +183,44 @@ class LearnedRepresentationPlotter:
             jump += length
 
     def plot_basic_figure(
-            self, show_legend=False, show_grid=False, file_saving_name='', marker=','):
+            self, show_legend=False, show_grid=False, file_saving_name='', marker=',',
+            markersize=12
+    ):
         """
         Plots an image using only blue pixels
 
         Args:
             show_legend      (bool): display or not the legend
             show_grid        (bool): display or not the grid
-            file_saving_name (str): filename without extension
-            marker           (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            file_saving_name  (str): filename without extension
+            marker            (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            markersize      (float): marker size (only works when marker != ',')
         """
         assert isinstance(marker, str)
+        assert isinstance(markersize, float)
 
         self.__plot_vertical_lines()
         nonzeros = np.nonzero(self.gamma.astype(bool).T)
-        plt.plot(*nonzeros, 'b{}'.format(marker))
+        plt.plot(*nonzeros, 'b{}'.format(marker), markersize=markersize)
         self.__plot_and_save(show_legend, show_grid, file_saving_name)
 
     def plot_colored_basic_figure(
-            self, show_legend=False, show_grid=False, file_saving_name='', marker=','):
+            self, show_legend=False, show_grid=False, file_saving_name='', marker=',',
+            markersize=12
+    ):
         """
         Plots and image using class-colored markers
 
         Args:
             show_legend      (bool): display or not the legend
             show_grid        (bool): display or not the grid
-            file_saving_name (str): filename without extension
-            marker           (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            file_saving_name  (str): filename without extension
+            marker            (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            markersize      (float): marker size (only works when marker != ',')
         """
         self.__plot_vertical_lines()
         self.__create_clusters()
-        self.__plot_clusters(marker)
+        self.__plot_clusters(marker, markersize)
         self.__plot_and_save(show_legend, show_grid, file_saving_name)
 
     def __filter_clusters(self, filter_by=PlotFilter.UNIQUE):
@@ -238,7 +252,7 @@ class LearnedRepresentationPlotter:
 
     def plot_filtered_colored_image(
             self, show_legend=False, show_grid=False, file_saving_name='',
-            filter_by=PlotFilter.UNIQUE, marker='.'
+            filter_by=PlotFilter.UNIQUE, marker='.', markersize=12
     ):
         """
         Filters the class-colored clusters and plots them
@@ -249,9 +263,10 @@ class LearnedRepresentationPlotter:
             file_saving_name  (str): filename without extension
             filter_by (str): plots only class unique atoms [u] or class shared atoms [s]. See constants.PlotFilter definition
              marker           (str): plot marker. See https://matplotlib.org/3.2.1/api/_as_gen/matplotlib.pyplot.plot.html
+            markersize (float): marker size (only works when marker != ',')
         """
         self.__plot_vertical_lines()
         self.__create_clusters()
         self.__filter_clusters(filter_by)
-        self.__plot_clusters(marker)
+        self.__plot_clusters(marker, markersize)
         self.__plot_and_save(show_legend, show_grid, file_saving_name)
