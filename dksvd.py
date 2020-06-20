@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 import scipy.linalg as splin
 from sklearn.linear_model import orthogonal_mp_gram
+from tqdm import tqdm
 
 from .utils.utils import colnorms_squared_new, normcols, timing
 
@@ -74,7 +75,8 @@ class ApproximateKSVD:
         else:
             D = Dinit / splin.norm(Dinit, axis=0)[sp.newaxis, :]
 
-        for i in range(self.max_iter):
+        print("ApproximateKSVD iterations")
+        for _ in tqdm(range(self.max_iter)):
             gamma = self._transform(D, X)
             e = splin.norm(X - D.dot(gamma))
             if e < self.tol:
