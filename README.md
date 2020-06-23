@@ -62,7 +62,8 @@ print('\nFinal recognition rate for D-KSVD is : {0:.4f}'.format(
     accuracy_score(np.argmax(data['H_test'], axis=0), predictions)))
 ```
 
-### Visualize learned representations
+### Visualization tools
+#### Visualize learned representations
 ``` python
 from scipy.io import loadmat
 from sklearn.metrics import accuracy_score
@@ -90,6 +91,27 @@ LearnedRepresentationPlotter(predictions=predictions, gamma=gamma,label_index=la
 LearnedRepresentationPlotter(predictions=predictions, gamma=gamma,label_index=label_index, custom_colours=COLOURS)(filter_by=PlotFilter.SHARED)
 ```
 
+#### Visualize dictionary atoms
+``` python
+from scipy.io import loadmat
+from sklearn.metrics import accuracy_score
+
+from <some folder>.lc_ksvd.dksvd import DKSVD
+from <some folder>.lc_ksvd.utils.plot_tools import AtomsPlotter
+
+
+file_path = 'path_to_data/featurevectors.mat'
+data = loadmat(file_path)
+lcksvd = DKSVD(timeit=True)
+Dinit, Tinit_T, Winit_T, Q = lcksvd.initialization4LCKSVD(data['training_feats'], data['H_train'])
+
+D, X, T, W = lcksvd.labelconsistentksvd2(data['training_feats'], Dinit, data['H_train'], Q, Tinit_T, Winit_T)
+predictions, gamma = lcksvd.classification(D, W, data['testing_feats'])
+COLOURS = tuple(['r', 'g', 'b', 'orange'])
+label_index = {0: 'Normal', 1: 'Benign', 2: 'In Situ', 3: 'Invasive'}
+
+AtomsPlotter(dictionary=D, img_width=128, img_height=96, n_rows=10, n_cols=16)()
+```
 
 # Requirements
 See requirements.txt

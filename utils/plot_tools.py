@@ -41,7 +41,7 @@ class LearnedRepresentationPlotter:
         """
         Verifies and initializes the instance
 
-        Args:
+        Kwargs:
             fontsize                 (int): font size
             figsize                (tuple): size of the figure
             dpi                      (int): image resolution (default 200)
@@ -270,3 +270,67 @@ class LearnedRepresentationPlotter:
         self.__filter_clusters(filter_by)
         self.__plot_clusters(marker, markersize)
         self.__plot_and_save(show_legend, show_grid, file_saving_name)
+
+
+class AtomsPlotter:
+    """
+    Plots dictionary atoms
+
+    Usage:
+        AtomsPlotter(dictionary=D, img_width=128, img_height=96, n_rows=5, n_cols=5)()
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialises the instance
+
+        Kwargs:
+            dictionary (np.ndarray): Learned dictionary
+            img_width         (int): Image width
+            img_height        (int): Image height
+            n_row             (int): Rows number
+            n_cols            (int): Cols number
+        """
+        self.dictionary = kwargs.get('dictionary', None)
+        self.img_width = kwargs.get('img_width')
+        self.img_height = kwargs.get('img_height')
+        self.n_rows = kwargs.get('n_rows', 5)
+        self.n_cols = kwargs.get('n_cols', 8)
+
+        assert isinstance(self.dictionary, np.ndarray)
+        assert isinstance(self.img_width, int)
+        assert isinstance(self.img_height, int)
+        assert isinstance(self.n_rows, int)
+        assert isinstance(self.n_cols, int)
+        assert self.n_rows * self.n_cols <= self.dictionary.shape[1], \
+            "n_rows * n_cols cannot be bigger than the number of dictionary atoms"
+
+    def __call__(self, file_saving_name=''):
+        """ Functor """
+        self._plot(file_saving_name)
+
+    def _plot(self, file_saving_name=''):
+        """
+        * Plots a determined number of dictionary atoms in grayscale
+        * If a filename is provided then the figure is saved.
+
+        Args:
+            file_saving_name (str): name (without extension) used to saved the figure
+
+        """
+        assert isinstance(file_saving_name, str)
+
+        plt.close('all')
+        fig, axes = plt.subplots(self.n_rows, self.n_cols, figsize=(20, 10),
+                                 subplot_kw={'xticks': [], 'yticks': []})
+
+        axes_list = axes.flat if self.n_rows*self.n_cols > 1 else [axes]
+
+        for index, ax in enumerate(axes_list):
+            ax.imshow(self.dictionary[:, index].reshape(96, 128), cmap=plt.cm.gray)
+
+        plt.tight_layout()
+        plt.show()
+
+        if file_saving_name:
+            fig.savefig('{}.png'.format(file_saving_name), bbox_inches='tight')
