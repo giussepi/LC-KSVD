@@ -327,7 +327,7 @@ class AtomsPlotter:
         axes_list = axes.flat if self.n_rows*self.n_cols > 1 else [axes]
 
         for index, ax in enumerate(axes_list):
-            ax.imshow(self.dictionary[:, index].reshape(96, 128), cmap=plt.cm.gray)
+            ax.imshow(self.dictionary[:, index].reshape(self.img_height, self.img_width), cmap=plt.cm.gray)
 
         plt.tight_layout()
         plt.show()
