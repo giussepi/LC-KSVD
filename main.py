@@ -35,7 +35,7 @@ def main():
     predictions, gamma = lcksvd.classification(D, W, data['testing_feats'])
     print('\nFinal recognition rate for LC-KSVD2 is : {0:.4f}'.format(
         accuracy_score(np.argmax(data['H_test'], axis=0), predictions)))
-    # Final recognition rate for LC-KSVD2 is : 0.9073
+    # Final recognition rate for LC-KSVD2 is : 0.9082
 
     ###########################################################################
     #                                  D-KSVD                                  #

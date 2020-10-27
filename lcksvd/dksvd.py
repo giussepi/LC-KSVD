@@ -7,7 +7,7 @@ import scipy.linalg as splin
 from sklearn.linear_model import orthogonal_mp_gram
 from tqdm import tqdm
 
-from .utils.utils import colnorms_squared_new, normcols, timing
+from lcksvd.utils.utils import colnorms_squared_new, normcols, timing
 
 
 class ApproximateKSVD:

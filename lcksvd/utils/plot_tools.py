@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
 
-from ..constants import PlotFilter
-from ..core.exceptions.plot_tools import ColourMapInvalid, ColourListInvalid
+from lcksvd.constants import PlotFilter
+from lcksvd.core.exceptions.plot_tools import ColourMapInvalid, ColourListInvalid
 
 
 class LearnedRepresentationPlotter:
