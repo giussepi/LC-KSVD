@@ -132,5 +132,8 @@ dmypy.json
 # emacs
 *~
 
+# training data
+trainingdata
+
 # integration files
 __init__.py

@@ -3,22 +3,25 @@
 ## Description
 Implementation of the Label consistent KSVD algorithm proposed by Zhuolin Jiang, Zhe Lin and Larry S. Davis.
 
-This implementation is a translation of the matlab code released by the authors on /projectlcksvd.html.
+This implementation is a translation of the matlab code released by the authors on [http://users.umiacs.umd.edu/~zhuolin/projectlcksvd.html](http://users.umiacs.umd.edu/~zhuolin/projectlcksvd.html).
 
 The code has been extended in order to use the related method called Discriminative KSVD proposed by Zhang, Qiang and Li, Baoxin.
 
 
 Forked from [https://github.com/Laadr/LC-KSVD](https://github.com/Laadr/LC-KSVD)
 
+**Note** the trainingdata and original matlab code published by Zhuolin can be downloaded from [here](http://users.umiacs.umd.edu/~zhuolin/LCKSVD/sharingcode-LCKSVD.zip)
+
 ## Usage
 ### LC-KSVD1
 ```python
+import numpy as np
 from scipy.io import loadmat
 from sklearn.metrics import accuracy_score
 
-from <some folder>.lc_ksvd.dksvd import DKSVD
+from lcksvd.dksvd import DKSVD
 
-file_path = 'path_to_data/featurevectors.mat'
+file_path = 'trainingdata/featurevectors.mat'
 data = loadmat(file_path)
 lcksvd = DKSVD(timeit=True)
 Dinit, Tinit_T, Winit_T, Q = lcksvd.initialization4LCKSVD(data['training_feats'], data['H_train'])
@@ -30,12 +33,13 @@ print('\nFinal recognition rate for LC-KSVD1 is : {0:.4f}'.format(
 
 ### LC-KSVD2
 ```python
+import numpy as np
 from scipy.io import loadmat
 from sklearn.metrics import accuracy_score
 
-from <some folder>.lc_ksvd.dksvd import DKSVD
+from lcksvd.dksvd import DKSVD
 
-file_path = 'path_to_data/featurevectors.mat'
+file_path = 'trainingdata/featurevectors.mat'
 data = loadmat(file_path)
 lcksvd = DKSVD(timeit=True)
 Dinit, Tinit_T, Winit_T, Q = lcksvd.initialization4LCKSVD(data['training_feats'], data['H_train'])
@@ -48,12 +52,13 @@ print('\nFinal recognition rate for LC-KSVD2 is : {0:.4f}'.format(
 
 ### D-KSVD
 ```python
+import numpy as np
 from scipy.io import loadmat
 from sklearn.metrics import accuracy_score
 
-from <some folder>.lc_ksvd.dksvd import DKSVD
+from lcksvd.dksvd import DKSVD
 
-file_path = 'path_to_data/featurevectors.mat'
+file_path = 'trainingdata/featurevectors.mat'
 data = loadmat(file_path)
 lcksvd = DKSVD(timeit=True)
 Dinit, Winit = lcksvd.initialization4DKSVD(data['training_feats'], data['H_train'])
