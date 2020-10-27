@@ -1,5 +1,24 @@
 # Label Consistent KSVD algorithm (LC-KSVD)
 
+## Installation
+Add to your requirements file
+
+`git+git://github.com/giussepi/LC-KSVD.git`
+
+or run
+
+``` bash
+pip install git+git://github.com/giussepi/LC-KSVD.git
+```
+
+Finally, install the [right cupy for your cuda version](https://github.com/cupy/cupy) (run `nvcc -V` to see it). E.g.:
+
+``` bash
+pip install cupy-cuda102
+```
+
+**Note** this app has been developed using `cupy-cuda102>=7.3.0`
+
 ## Description
 Implementation of the Label consistent KSVD algorithm proposed by Zhuolin Jiang, Zhe Lin and Larry S. Davis.
 
