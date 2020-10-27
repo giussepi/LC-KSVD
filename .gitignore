@@ -134,6 +134,3 @@ dmypy.json
 
 # training data
 trainingdata
-
-# integration files
-__init__.py
