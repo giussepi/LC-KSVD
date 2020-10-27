@@ -24,7 +24,7 @@ setuptools.setup(
     description="LC-KSVD (1 & 2) python implementation",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/giussepi/lcksvd",
+    url="https://github.com/giussepi/LC-KSVD",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
