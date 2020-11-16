@@ -3,12 +3,16 @@
 ## Installation
 Add to your requirements file
 
-`git+git://github.com/giussepi/LC-KSVD.git`
+`lcksvd @ https://github.com/giussepi/LC-KSVD/tarball/main`
 
 or run
 
 ``` bash
-pip install git+git://github.com/giussepi/LC-KSVD.git
+pip install git+git://github.com/giussepi/LC-KSVD.git --use-feature=2020-resolver --no-cache-dir
+
+# or
+
+pip install https://github.com/giussepi/LC-KSVD/tarball/main --use-feature=2020-resolver --no-cache-dir
 ```
 
 Finally, install the [right cupy for your cuda version](https://github.com/cupy/cupy) (run `nvcc -V` to see it). E.g.:
