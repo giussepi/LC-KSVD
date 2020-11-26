@@ -328,6 +328,24 @@ class DKSVD:
         """
         return self.labelconsistentksvd(Y, Dinit, labels, Q_train, Tinit, Winit)
 
+    @staticmethod
+    def get_sparse_representations(data, D, sparsitythres):
+        """
+        Sparse coding
+
+        Args:
+            data              : testing features
+            D                 : learned dictionary
+            sparsitythres     : sparsity threshold for KSVD
+        Returns:
+            gamma             : learned representation
+        """
+        G = D.T.dot(D)
+        gamma = orthogonal_mp_gram(
+            G, D.T.dot(data), copy_Gram=False, copy_Xy=False, n_nonzero_coefs=sparsitythres)
+
+        return gamma
+
     @timing
     # @jit
     def classification(self, D, W, data):
@@ -343,9 +361,9 @@ class DKSVD:
         """
 
         # sparse coding
-        G = D.T.dot(D)
-        gamma = orthogonal_mp_gram(G, D.T.dot(data), copy_Gram=False, copy_Xy=False, n_nonzero_coefs=self.sparsitythres)
-        # classify process
+        gamma = self.get_sparse_representations(data, D, self.sparsitythres)
+
+        # classification process
         prediction = np.argmax(W.dot(gamma), axis=0)
 
         return prediction, gamma
